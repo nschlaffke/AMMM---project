@@ -13,8 +13,8 @@ class InstanceGenerator:
         self.cost_2 = 20
         self.cost_3 = 30  # cost1 < cost2 < cost3
 
-    def get_even(self, number):
-        return number + 1 if number % 2 else number
+    def get_even(self, numbers):
+        return [number + 1 if number % 2 else number for number in numbers]
 
     def get_cost_contract(self):
         return np.random.randint(low=500, high=2500, size=self.num_providers)
@@ -53,7 +53,8 @@ class InstanceGenerator:
         file.write("cost_2=%s;\n" % self.cost_2)
         file.write("cost_3=%s;\n" % self.cost_3)
 
-    def generate_opl_array(self, array):
+    @staticmethod
+    def generate_opl_array(array):
         str_array = [str(x) for x in array]
         string = ' '.join(str_array)
         return '[' + string + ']'
