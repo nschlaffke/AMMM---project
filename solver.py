@@ -94,7 +94,9 @@ class Solver:
         self.used_countries.add(best_candidate.country)
 
     def get_grasp_candidate(self, candidates_cost, alpha):
-
+        candidates_sorted = sorted(candidates_cost, key=lambda cand_cost: cand_cost[1])
+        q_max, q_min = candidates_sorted[0][1], candidates_sorted[-1][1]
+        rtl = [candidate for candidates_sorted if candidate[1] ]
         return (1, 2, 3)
 
     def get_needed_workers(self):
@@ -102,7 +104,7 @@ class Solver:
 
     def get_best_candidate(self, candidates_cost):
         additional_batch = 0
-        candidates_sorted = sorted(candidates_cost, key=lambda cand_cost: cand_cost[1], reverse=True)
+        candidates_sorted = sorted(candidates_cost, key=lambda cand_cost: cand_cost[1])
         best, cost = candidates_sorted[0]
         if best.available_workers <= self.get_needed_workers():
             number_of_workers = best.available_workers

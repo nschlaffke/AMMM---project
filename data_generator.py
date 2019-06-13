@@ -23,7 +23,7 @@ class InstanceGenerator:
         return np.random.randint(low=100, high=1000, size=self.num_providers)
 
     def get_wr(self):
-        return sum(self.available_workers) // 2
+        return sum(self.available_workers) // 5
 
     def get_workers(self):
         return self.get_even(np.random.randint(low=10, high=50, size=self.num_providers))
