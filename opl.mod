@@ -77,5 +77,5 @@ execute {
  		write(" workers required (availability is " + available_workers[p] + ")");
  		writeln("\tcost_worker = " + cost_worker[p] + "\tcost_contract " + cost_contract[p]);
  		
-	} 	
+	}
 }
