@@ -29,7 +29,7 @@ class InstanceGenerator:
         return self.get_even(np.random.randint(low=10, high=50, size=self.num_providers))
 
     def get_countries(self):
-        num_countries = self.num_providers // 2
+        num_countries = self.num_providers * 0.9
         return np.random.randint(low=1, high=1 + num_countries, size=self.num_providers)
 
     def instance_to_file(self, file_name):
