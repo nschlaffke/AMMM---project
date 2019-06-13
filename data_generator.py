@@ -35,7 +35,7 @@ class InstanceGenerator:
     def instance_to_file(self, file_name):
         file = open(file_name, 'w')
         file.write("wr=%s;\n" % self.wr)
-        file.write("nProviders=%s;\n" % self.num_providers)
+        file.write("num_providers=%s;\n" % self.num_providers)
 
         cost_worker_opl = self.generate_opl_array(self.cost_worker)
         file.write("cost_worker=%s;\n" % cost_worker_opl)
