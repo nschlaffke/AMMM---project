@@ -1,5 +1,7 @@
 import re
 
+import numpy as np
+
 
 class Provider:
     def __init__(self, cost_contract, cost_worker, available_workers, country, provider_id):
@@ -77,10 +79,12 @@ class Solver:
     def solve_heuristic(self, grasp=False, alpha=0.5):
         while self.hired < self.instance.wr:
             candidates_filtered = self.filter_infeasible(self.candidates)
+            if len(candidates_filtered) == 0:
+                raise Exception("Unfeasible instance")
             candidates_cost = [(candidate, self.q(candidate)) for candidate in candidates_filtered]
             if grasp:
                 candidate, number_of_workers, additional = self.get_grasp_candidate(candidates_cost, alpha)
-                self.update_data(candidate, number_of_workers)
+                self.update_data(candidate, number_of_workers + additional)
                 self.solution.append((candidate, number_of_workers, additional))
             else:
                 best_candidate, number_of_workers, additional = self.get_best_candidate(candidates_cost)
@@ -94,10 +98,21 @@ class Solver:
         self.used_countries.add(best_candidate.country)
 
     def get_grasp_candidate(self, candidates_cost, alpha):
+        additional_batch = 0
         candidates_sorted = sorted(candidates_cost, key=lambda cand_cost: cand_cost[1])
-        q_max, q_min = candidates_sorted[0][1], candidates_sorted[-1][1]
-        rtl = [candidate for candidates_sorted if candidate[1] ]
-        return (1, 2, 3)
+        q_max = candidates_sorted[0][1]
+        q_min = candidates_sorted[-1][1]
+        rtl = [candidate for candidate in candidates_sorted if candidate[1] <= q_min + alpha * (q_max - q_min)]
+        best, cost = rtl[np.random.randint(low=0, high=len(rtl))]
+        if best.available_workers <= self.get_needed_workers():
+            number_of_workers = best.available_workers
+            missing = self.get_needed_workers() - number_of_workers
+            if missing > 0:
+                additional_batch = min(missing, number_of_workers)
+        else:
+            number_of_workers = best.available_workers / 2
+
+        return best, number_of_workers, additional_batch
 
     def get_needed_workers(self):
         return self.instance.wr - self.hired
@@ -150,15 +165,13 @@ class Solver:
             return cost
 
     def filter_infeasible(self, candidates):
-        allowed_by_country = [candidate for candidate in candidates if self.allowed_country(candidate)]
+        allowed_by_country = [candidate for candidate in candidates if self.allowed_country_provider(candidate)]
         allowed_by_size = [candidate for candidate in allowed_by_country if self.allowed_by_size(candidate)]
         return allowed_by_size
 
-    def allowed_country(self, candidate):
-        if not (candidate.get_country() in self.used_countries):
+    def allowed_country_provider(self, candidate):
+        if not (candidate.get_country() in self.used_countries) and not(candidate.id in self.used_providers):
             return True  # We didn't use this country
-        elif candidate.id in self.used_providers:
-            return True  # We used this country, but we used this provider
         else:
             return False
 
@@ -169,8 +182,43 @@ class Solver:
         else:
             return False
 
+    def get_potential_providers(self, used_provider):
+        # they are not used
+        disallowed_providers = self.used_providers.copy()
+        disallowed_providers.remove(used_provider.id)
+        not_used = [candidate for candidate in self.candidates if candidate not in disallowed_providers]
 
-instance = Instance("test.dat")
-solver = Solver(instance)
-solver.solve_heuristic()
-print(solver.solution)
+        # they are not from used countries - used_provider.country
+        disallowed_countries = self.used_countries.copy()
+        disallowed_countries.remove(used_provider.country)
+        allowed_by_country = [candidate for candidate in not_used if candidate not in disallowed_countries]
+
+        # they can fill the hole after exchange
+
+
+
+
+    def perform_local_search(self):
+        if self.cost is None:
+            raise Exception("No base solution")
+        current_cost = self.cost
+        while True:
+            improved = False
+            for used_provider in self.solution:
+                if improved:
+                    break
+                potential_providers = self.get_potential_providers()
+                for potential_provider in self.instance.providers:
+                    # TODO exchange providers if possible
+                    if potential_provider.id in self.used_providers:
+                        continue  # We already use this provider
+
+                    new_cost = self.calculate_cost()
+                    if new_cost < current_cost:
+                        # TODO keep the new solution
+                        improved = True
+                        self.cost = self.calculate_cost()
+                        # TODO update the data - available providers used countries itpd
+                        break
+            if not improved:
+                break
