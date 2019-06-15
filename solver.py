@@ -207,7 +207,7 @@ class Solver:
 
         start = timer()
         while True:
-            if timer() - start > 30*5:
+            if timer() - start > 60*5:
                 break
             current_cost = self.cost
             improved = False
