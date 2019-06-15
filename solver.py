@@ -1,6 +1,6 @@
 import re
-
 import numpy as np
+from timeit import default_timer as timer
 
 
 class Provider:
@@ -77,10 +77,17 @@ class Solver:
         return cost
 
     def solve_heuristic(self, grasp=False, alpha=0.5):
+        step_back = -1
         while self.hired < self.instance.wr:
             candidates_filtered = self.filter_infeasible(self.candidates)
             if len(candidates_filtered) == 0:
-                raise Exception("Unfeasible instance")
+                print("step back")
+                provider, batch, add = self.solution[step_back]
+                self.solution[-1] = provider, batch, 0
+                self.hired -= add
+                step_back -= 1
+                continue
+            step_back = -1
             candidates_cost = [(candidate, self.q(candidate)) for candidate in candidates_filtered]
             if grasp:
                 candidate, number_of_workers, additional = self.get_grasp_candidate(candidates_cost, alpha)
@@ -170,7 +177,7 @@ class Solver:
         return allowed_by_size
 
     def allowed_country_provider(self, candidate):
-        if not (candidate.get_country() in self.used_countries) and not(candidate.id in self.used_providers):
+        if not (candidate.get_country() in self.used_countries) and not (candidate.id in self.used_providers):
             return True  # We didn't use this country
         else:
             return False
@@ -182,43 +189,59 @@ class Solver:
         else:
             return False
 
-    def get_potential_providers(self, used_provider):
-        # they are not used
-        disallowed_providers = self.used_providers.copy()
-        disallowed_providers.remove(used_provider.id)
-        not_used = [candidate for candidate in self.candidates if candidate not in disallowed_providers]
+    @staticmethod
+    def can_substitute(new_provider, old_provider_pack):
 
-        # they are not from used countries - used_provider.country
-        disallowed_countries = self.used_countries.copy()
-        disallowed_countries.remove(used_provider.country)
-        allowed_by_country = [candidate for candidate in not_used if candidate not in disallowed_countries]
-
-        # they can fill the hole after exchange
-
-
-
+        old_provider, old_reg_batch, old_add_batch = old_provider_pack
+        summary_provided = old_reg_batch + old_add_batch
+        if new_provider.available_workers <= summary_provided <= new_provider.available_workers * 2:
+            return True
+        elif new_provider.available_workers / 2 == summary_provided:
+            return True
+        else:
+            return False
 
     def perform_local_search(self):
         if self.cost is None:
             raise Exception("No base solution")
-        current_cost = self.cost
+
+        start = timer()
         while True:
+            if timer() - start > 30*5:
+                break
+            current_cost = self.cost
             improved = False
             for used_provider in self.solution:
                 if improved:
                     break
-                potential_providers = self.get_potential_providers()
                 for potential_provider in self.instance.providers:
-                    # TODO exchange providers if possible
                     if potential_provider.id in self.used_providers:
-                        continue  # We already use this provider
+                        continue
+                    if potential_provider.country in self.used_countries:
+                        continue
+                    if not self.can_substitute(potential_provider, used_provider):
+                        continue
+                    self.solution.remove(used_provider)
+                    old_provider, reg_batch, add_batch = used_provider
+                    self.hired -= (reg_batch + add_batch)
 
+                    potential_provider_as_candidate = self.max_from_provider(potential_provider)
+                    self.solution.append(potential_provider_as_candidate)
                     new_cost = self.calculate_cost()
+
                     if new_cost < current_cost:
-                        # TODO keep the new solution
                         improved = True
-                        self.cost = self.calculate_cost()
-                        # TODO update the data - available providers used countries itpd
+                        self.cost = new_cost
+
+                        self.used_countries.remove(old_provider.country)
+                        self.used_countries.add(potential_provider.country)
+
+                        self.used_providers.remove(old_provider.id)
+                        self.used_providers.add(potential_provider.id)
                         break
+                    else:
+                        self.solution.remove(potential_provider_as_candidate)
+                        self.solution.append(used_provider)
+                    self.hired += (reg_batch + add_batch)
             if not improved:
                 break
